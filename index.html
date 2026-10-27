@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureNest</title>
+  <meta name="description"
+    content="SecureNest: an educational password checker, generator and encrypted vault that runs entirely in your browser." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <!-- Icon sprite: one lock icon, reused with <use>. Drawn in currentColor so CSS can colour it. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="11" width="16" height="10" rx="2.5" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      <circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none" />
+    </symbol>
+  </svg>
+
+  <!-- Decorative animated background. Sits behind everything and ignores clicks. -->
+  <div class="bg" aria-hidden="true">
+    <div class="bg__orb bg__orb--1"></div>
+    <div class="bg__orb bg__orb--2"></div>
+    <div class="bg__orb bg__orb--3"></div>
+    <canvas id="bg-code" class="bg__code"></canvas>
+  </div>
+
+  <div class="app">
+    <header class="app__header">
+      <span class="badge" aria-hidden="true"><svg class="icon icon--lg"><use href="#icon-lock" /></svg></span>
+      <h1>SecureNest</h1>
+      <p class="subtitle">Password Checker, Generator &amp; Manager</p>
+    </header>
+
+    <!-- Main navigation. Built as ARIA tabs so keyboard and screen reader users can switch sections. -->
+    <nav aria-label="Sections">
+      <div class="tabs" role="tablist" id="tablist">
+        <button type="button" role="tab" id="tab-checker" class="tab" aria-controls="panel-checker"
+          aria-selected="true">Password Checker</button>
+        <button type="button" role="tab" id="tab-generator" class="tab" aria-controls="panel-generator"
+          aria-selected="false" tabindex="-1">Password Generator</button>
+        <button type="button" role="tab" id="tab-vault" class="tab" aria-controls="panel-vault" aria-selected="false"
+          tabindex="-1">My Vault</button>
+      </div>
+    </nav>
+
+    <main>
+      <!-- ============ Panel 1: Password Checker ============ -->
+      <section class="card panel" id="panel-checker" role="tabpanel" aria-labelledby="tab-checker">
+        <h2 class="panel__title">Password Checker</h2>
+        <p class="panel__intro">Type a password to see how it measures up. Updates as you type.</p>
+
+        <label id="password-label" for="password" class="field-label">Password</label>
+        <div class="input-row">
+          <!-- autocomplete/spellcheck off: the browser should not save or send this text anywhere -->
+          <input type="password" id="password" name="password-test" autocomplete="off" autocapitalize="off"
+            autocorrect="off" spellcheck="false" placeholder="Enter a password to test"
+            aria-describedby="strength-text" />
+          <button type="button" id="toggle" class="btn btn--ghost" aria-pressed="false"
+            aria-controls="password">Show</button>
+        </div>
+
+        <div class="block">
+          <h3 id="strength-title" class="block__title">Strength</h3>
+          <div class="meter" aria-hidden="true">
+            <div class="meter__bar" id="meter-bar"></div>
+          </div>
+          <p id="strength-text" class="strength-text" role="status" aria-live="polite">Enter a password to begin.</p>
+        </div>
+
+        <div class="block">
+          <h3 id="checklist-title" class="block__title">Requirements</h3>
+          <ul class="checklist" id="checklist">
+            <li data-rule="length8"><span class="icon" aria-hidden="true"></span><span class="text">At least 8 characters</span><span class="sr-only status"> (not met)</span></li>
+            <li data-rule="length12"><span class="icon" aria-hidden="true"></span><span class="text">At least 12 characters (recommended)</span><span class="sr-only status"> (not met)</span></li>
+            <li data-rule="upper"><span class="icon" aria-hidden="true"></span><span class="text">Contains an uppercase letter</span><span class="sr-only status"> (not met)</span></li>
+            <li data-rule="lower"><span class="icon" aria-hidden="true"></span><span class="text">Contains a lowercase letter</span><span class="sr-only status"> (not met)</span></li>
+            <li data-rule="number"><span class="icon" aria-hidden="true"></span><span class="text">Contains a number</span><span class="sr-only status"> (not met)</span></li>
+            <li data-rule="special"><span class="icon" aria-hidden="true"></span><span class="text">Contains a special character</span><span class="sr-only status"> (not met)</span></li>
+          </ul>
+        </div>
+
+        <div class="block">
+          <h3 id="suggestions-title" class="block__title">Suggestions</h3>
+          <ul class="suggestions" id="suggestions">
+            <li>Start typing to get tips.</li>
+          </ul>
+        </div>
+
+        <button type="button" id="reset" class="btn btn--primary">Reset</button>
+
+        <p class="note">
+          This result is an estimate from a basic educational algorithm. It is not a guarantee of security
+          and not a complete password audit.
+        </p>
+      </section>
+
+      <!-- ============ Panel 2: Generator (Stage 2) ============ -->
+      <section class="card panel" id="panel-generator" role="tabpanel" aria-labelledby="tab-generator" hidden>
+        <h2 class="panel__title">Password Generator</h2>
+        <p class="panel__intro">Passwords are created with your browser's secure random number generator and are
+          never stored automatically.</p>
+
+        <button type="button" id="generate" class="btn btn--primary btn--big">Generate Strong Password</button>
+
+        <label for="generated" class="field-label block">Generated password</label>
+        <div class="input-row">
+          <input type="password" id="generated" readonly autocomplete="off" spellcheck="false"
+            placeholder="Nothing generated yet" />
+          <button type="button" id="gen-toggle" class="btn btn--ghost" aria-pressed="false" aria-controls="generated"
+            disabled>Show</button>
+        </div>
+        <div class="action-row">
+          <button type="button" id="gen-copy" class="btn btn--ghost" disabled>Copy</button>
+          <button type="button" id="gen-use" class="btn btn--ghost" disabled>Use in Checker</button>
+          <button type="button" id="gen-save" class="btn btn--ghost" disabled>Save to Vault</button>
+        </div>
+        <p id="gen-message" class="gen-message" role="status" aria-live="polite"></p>
+
+        <fieldset class="options">
+          <legend class="block__title">Options</legend>
+          <label class="range-label" for="gen-length">Length: <strong id="gen-length-value">16</strong></label>
+          <input type="range" id="gen-length" min="12" max="64" value="16" />
+          <div class="checks">
+            <label><input type="checkbox" id="gen-upper" checked /> Uppercase (A-Z)</label>
+            <label><input type="checkbox" id="gen-lower" checked /> Lowercase (a-z)</label>
+            <label><input type="checkbox" id="gen-numbers" checked /> Numbers (0-9)</label>
+            <label><input type="checkbox" id="gen-symbols" checked /> Symbols (!@#$...)</label>
+            <label><input type="checkbox" id="gen-nodup" /> No duplicate characters</label>
+          </div>
+          <p class="note">"No duplicate characters" slightly shrinks the number of possible passwords, so it is off
+            by default.</p>
+        </fieldset>
+      </section>
+
+      <!-- ============ Panel 3: Vault (Stages 3-5) ============ -->
+      <section class="card panel" id="panel-vault" role="tabpanel" aria-labelledby="tab-vault" hidden>
+        <h2 class="panel__title">My Vault</h2>
+        <p class="warn"><strong>Educational prototype.</strong> It has not had a professional security audit.
+          Do not store real, important credentials here.</p>
+
+        <p id="vault-unavailable" class="form-message error" role="alert" hidden>
+          Your browser is blocking local storage (private mode or blocked site data), so the vault cannot be saved.
+        </p>
+
+        <!-- View 1: no vault yet -->
+        <form id="vault-setup" class="vault-view" autocomplete="off" hidden>
+          <h3>Create your vault</h3>
+          <p class="panel__intro">Choose a master password. It encrypts everything in the vault and is never stored.</p>
+          <label for="setup-master" class="field-label">Master password (10+ characters)</label>
+          <input type="password" id="setup-master" autocomplete="off" spellcheck="false" />
+          <label for="setup-confirm" class="field-label spaced">Confirm master password</label>
+          <input type="password" id="setup-confirm" autocomplete="off" spellcheck="false" />
+          <label class="check spaced"><input type="checkbox" id="setup-ack" />
+            <span>I understand that if I forget my master password, my data <strong>cannot be recovered</strong>.</span></label>
+          <button type="submit" id="setup-submit" class="btn btn--primary">Create vault</button>
+          <p id="setup-message" class="form-message error" role="alert"></p>
+        </form>
+
+        <!-- View 2: vault exists but is locked -->
+        <form id="vault-locked" class="vault-view" autocomplete="off" hidden>
+          <h3 class="with-icon"><svg class="icon" aria-hidden="true"><use href="#icon-lock" /></svg> Vault locked</h3>
+          <label for="unlock-master" class="field-label">Master password</label>
+          <input type="password" id="unlock-master" autocomplete="off" spellcheck="false" />
+          <button type="submit" id="unlock-submit" class="btn btn--primary">Unlock</button>
+          <p id="unlock-message" class="form-message" role="alert"></p>
+          <button type="button" id="export-locked" class="btn btn--ghost btn--small">Export encrypted backup</button>
+          <details class="forgot">
+            <summary>Forgot your master password?</summary>
+            <p>There is no recovery. Your data is encrypted with a key made from your master password, and nobody
+              (including this app) can decrypt it without it. If you have an encrypted backup you can restore it with
+              the same password. Otherwise the only option is to erase the vault and start over.</p>
+            <button type="button" class="btn btn--danger" id="erase-locked">Erase vault&hellip;</button>
+          </details>
+        </form>
+
+        <!-- View 3: saved data is damaged -->
+        <div id="vault-damaged" class="vault-view" hidden>
+          <h3>Saved vault could not be read</h3>
+          <p id="damaged-message" class="form-message error"></p>
+          <p class="panel__intro">Nothing has been deleted or changed. If you have an encrypted backup, restore it
+            instead. Otherwise you can erase the damaged data and start over.</p>
+          <button type="button" class="btn btn--danger" id="erase-damaged">Erase vault&hellip;</button>
+        </div>
+
+        <!-- View 4: unlocked -->
+        <div id="vault-open" class="vault-view" hidden>
+          <div class="toolbar">
+            <div class="search">
+              <label for="vault-search" class="sr-only">Search accounts</label>
+              <input type="search" id="vault-search" placeholder="Search accounts" autocomplete="off" />
+            </div>
+            <button type="button" id="vault-add" class="btn btn--ghost">Add account</button>
+            <button type="button" id="vault-export" class="btn btn--ghost">Export backup</button>
+            <button type="button" id="vault-lock" class="btn btn--ghost with-icon"><svg class="icon" aria-hidden="true"><use href="#icon-lock" /></svg> Lock</button>
+          </div>
+          <p class="note">Unlocked. Locks automatically after 5 minutes of inactivity.</p>
+
+          <form id="entry-form" class="entry-form" autocomplete="off" hidden>
+            <h3 id="entry-form-title">Add account</h3>
+            <label for="entry-name" class="field-label">Website or app name *</label>
+            <input type="text" id="entry-name" maxlength="100" required autocomplete="off" />
+            <label for="entry-url" class="field-label spaced">Website URL (optional)</label>
+            <input type="text" id="entry-url" maxlength="300" placeholder="https://example.com" autocomplete="off"
+              inputmode="url" />
+            <label for="entry-username" class="field-label spaced">Username or email *</label>
+            <input type="text" id="entry-username" maxlength="200" required autocomplete="off" />
+            <label for="entry-password" class="field-label spaced">Password *</label>
+            <div class="input-row">
+              <input type="password" id="entry-password" maxlength="500" required autocomplete="off"
+                spellcheck="false" />
+              <button type="button" id="entry-toggle" class="btn btn--ghost" aria-pressed="false"
+                aria-controls="entry-password">Show</button>
+              <button type="button" id="entry-generate" class="btn btn--ghost">Generate</button>
+            </div>
+            <label for="entry-notes" class="field-label spaced">Notes (optional)</label>
+            <textarea id="entry-notes" maxlength="1000" rows="3"></textarea>
+            <div class="action-row">
+              <button type="submit" id="entry-save" class="btn btn--primary btn--inline">Save</button>
+              <button type="button" id="entry-cancel" class="btn btn--ghost">Cancel</button>
+            </div>
+            <p id="entry-message" class="form-message error" role="alert"></p>
+          </form>
+
+          <p id="vault-status" class="gen-message" role="status" aria-live="polite"></p>
+          <p id="vault-empty" class="empty" hidden></p>
+          <ul id="vault-list" class="entries"></ul>
+          <p class="note">Backups are encrypted with your master password and are safe to store, but a backup is only as
+            safe as that password. Keep one somewhere other than this browser.</p>
+          <p class="note">Copying puts the password on your clipboard. Browsers cannot reliably clear the clipboard,
+            so it may stay there until you copy something else.</p>
+        </div>
+
+        <!-- Restore from backup: shown on the create, locked and damaged screens -->
+        <details id="vault-import" class="forgot import" hidden>
+          <summary>Restore from an encrypted backup</summary>
+          <p>Choose a backup file exported from SecureNest and enter the master password it was made with. The file is
+            decrypted here in your browser to check it is valid. If you already have a vault in this browser, it will
+            be replaced after you confirm.</p>
+          <label for="import-file" class="field-label">Backup file (.json)</label>
+          <input type="file" id="import-file" accept=".json,application/json" />
+          <label for="import-master" class="field-label spaced">Master password of the backup</label>
+          <input type="password" id="import-master" autocomplete="off" spellcheck="false" />
+          <button type="button" id="import-submit" class="btn btn--ghost spaced">Import backup</button>
+          <p id="import-message" class="form-message error" role="alert"></p>
+        </details>
+
+        <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+          <form method="dialog">
+            <h3 id="confirm-title"></h3>
+            <p id="confirm-text"></p>
+            <div class="action-row">
+              <button type="submit" value="cancel" class="btn btn--ghost" autofocus>Cancel</button>
+              <button type="submit" value="ok" id="confirm-ok" class="btn btn--danger">Confirm</button>
+            </div>
+          </form>
+        </dialog>
+      </section>
+    </main>
+
+    <!-- Always-visible privacy and honesty notice -->
+    <footer class="notice">
+      <h2>Privacy &amp; warning</h2>
+      <p>
+        Everything runs locally in your browser. No analytics, no external requests, no server.
+        This is an educational prototype that has <strong>not</strong> had a professional security audit.
+        Do not use it for real, important credentials.
+      </p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
